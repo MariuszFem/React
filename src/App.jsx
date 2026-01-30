@@ -1,68 +1,81 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { tasksApi } from './api/tasksApi'; 
 import Header from "./components/Header";
 import TaskList from "./components/TaskList";
 import Card from "./components/Card";
 import FilterButtons from "./components/FilterButtons";
 import TaskStats from "./components/TaskStats";
-import AddTask from "./components/AddTask"; // 1. DODAJ TEN IMPORT
+import AddTask from "./components/AddTask";
+import QuoteOfTheDay from "./components/QuoteOfTheDay";
 
 function App() {
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Nauczyć się propsów", completed: true, priority: "high" },
-    { id: 2, title: "Zrozumieć useState", completed: false, priority: "medium" },
-    { id: 3, title: "Zrobić przerwę na kawę", completed: false, priority: "low" },
-  ]);
-
+  const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true); 
+  const [isSaving, setIsSaving] = useState(false);
 
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
-  };
-
-  const toggleTask = (id) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
-  };
-
-  const changePriority = (id, newPriority) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, priority: newPriority } : task
-    ));
-  };
-
-  const addTask = (title) => {
-    const newTask = {
-      id: Date.now(), 
-      title: title, // 2. DODAJ TĘ LINIĘ, żeby zadanie miało nazwę!
-      completed: false,
-      priority: "medium"
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await tasksApi.fetchTasks();
+        setTasks(data);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setTasks([...tasks, newTask]); 
-  };
+    loadData();
+  }, []);
 
-  const filteredTasks = tasks.filter(task => {
-    if (filter === 'active') return !task.completed;
-    if (filter === 'completed') return task.completed;
+  useEffect(() => {
+    if (isLoading) return; 
+    const saveData = async () => {
+      setIsSaving(true);
+      await tasksApi.saveTasks(tasks);
+      setIsSaving(false);
+    };
+    saveData();
+  }, [tasks, isLoading]);
+
+  const deleteTask = (id) => setTasks(tasks.filter(t => t.id !== id));
+  const toggleTask = (id) => setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  const changePriority = (id, prio) => setTasks(tasks.map(t => t.id === id ? { ...t, priority: prio } : t));
+  const addTask = (title) => setTasks([...tasks, { id: Date.now(), title, completed: false, priority: "medium" }]);
+  const clearAllTasks = () => window.confirm("Wyczyścić wszystko?") && setTasks([]);
+
+  const filteredTasks = tasks.filter(t => {
+    if (filter === 'active') return !t.completed;
+    if (filter === 'completed') return t.completed;
     return true;
   });
 
   return (
     <div className="App">
       <Header />
-      <Card title="Moje Zadania" className="main-card">
-        {/* 3. WRZUĆ KOMPONENT TUTAJ */}
+      <Card title="Panel Kontrolny">
+        <QuoteOfTheDay />
         <AddTask onAdd={addTask} />
         
+        <div style={{ height: '20px', fontSize: '0.8em', color: 'blue' }}>
+          {isSaving && "Zapisywanie zmian w chmurze..."}
+        </div>
+
         <TaskStats tasks={tasks} />
-        <FilterButtons activeFilter={filter} setFilter={setFilter} />
         
-        <TaskList 
-          tasks={filteredTasks} 
-          onDelete={deleteTask} 
-          onToggle={toggleTask}
-          onChangePriority={changePriority} 
-        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <FilterButtons activeFilter={filter} setFilter={setFilter} />
+          <button onClick={clearAllTasks} style={{ color: 'red' }}>Wyczyść listę</button>
+        </div>
+
+        {isLoading ? (
+          <p>Trwa pobieranie zadań z serwera...</p>
+        ) : (
+          <TaskList 
+            tasks={filteredTasks} 
+            onDelete={deleteTask} 
+            onToggle={toggleTask}
+            onChangePriority={changePriority} 
+          />
+        )}
       </Card>
     </div>
   );
