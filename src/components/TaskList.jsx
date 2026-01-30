@@ -1,7 +1,6 @@
 import TaskItem from "./TaskItem";
 
-function TaskList({ tasks }) {
-  // Obsługa pustej listy
+function TaskList({ tasks, onDelete, onToggle, onChangePriority }) {
   if (tasks.length === 0) {
     return <p>Brak zadań do wyświetlenia. Odpocznij! 😊</p>;
   }
@@ -10,11 +9,14 @@ function TaskList({ tasks }) {
     <div className="task-list">
       {tasks.map((task) => (
         <TaskItem 
-          key={task.id} // Unikalny klucz (id, nie index!)
+          key={task.id} 
           id={task.id}
           title={task.title}
           completed={task.completed}
           priority={task.priority}
+          onDelete={onDelete}
+          onToggle={onToggle}
+          onChangePriority={onChangePriority}
         />
       ))}
     </div>
