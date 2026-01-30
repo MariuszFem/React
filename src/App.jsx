@@ -4,6 +4,7 @@ import TaskList from "./components/TaskList";
 import Card from "./components/Card";
 import FilterButtons from "./components/FilterButtons";
 import TaskStats from "./components/TaskStats";
+import AddTask from "./components/AddTask"; // 1. DODAJ TEN IMPORT
 
 function App() {
   const [tasks, setTasks] = useState([
@@ -24,11 +25,20 @@ function App() {
     ));
   };
 
-  // NOWOŚĆ: Funkcja zmiany priorytetu (Część D)
   const changePriority = (id, newPriority) => {
     setTasks(tasks.map(task => 
       task.id === id ? { ...task, priority: newPriority } : task
     ));
+  };
+
+  const addTask = (title) => {
+    const newTask = {
+      id: Date.now(), 
+      title: title, // 2. DODAJ TĘ LINIĘ, żeby zadanie miało nazwę!
+      completed: false,
+      priority: "medium"
+    };
+    setTasks([...tasks, newTask]); 
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -41,10 +51,12 @@ function App() {
     <div className="App">
       <Header />
       <Card title="Moje Zadania" className="main-card">
+        {/* 3. WRZUĆ KOMPONENT TUTAJ */}
+        <AddTask onAdd={addTask} />
+        
         <TaskStats tasks={tasks} />
         <FilterButtons activeFilter={filter} setFilter={setFilter} />
         
-        {/* Przekazujemy nową funkcję onChangePriority */}
         <TaskList 
           tasks={filteredTasks} 
           onDelete={deleteTask} 
