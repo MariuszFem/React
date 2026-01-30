@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { tasksApi } from './api/tasksApi'; 
+import { tasksApi } from './api/tasksApi';
 import Header from "./components/Header";
 import TaskList from "./components/TaskList";
 import Card from "./components/Card";
@@ -11,7 +11,10 @@ import QuoteOfTheDay from "./components/QuoteOfTheDay";
 function App() {
   const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState('all');
-  const [isLoading, setIsLoading] = useState(true); 
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('default');
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -27,53 +30,72 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (isLoading) return; 
-    const saveData = async () => {
-      setIsSaving(true);
-      await tasksApi.saveTasks(tasks);
-      setIsSaving(false);
-    };
-    saveData();
+    if (isLoading) return;
+    tasksApi.saveTasks(tasks);
   }, [tasks, isLoading]);
 
-  const deleteTask = (id) => setTasks(tasks.filter(t => t.id !== id));
-  const toggleTask = (id) => setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  const changePriority = (id, prio) => setTasks(tasks.map(t => t.id === id ? { ...t, priority: prio } : t));
-  const addTask = (title) => setTasks([...tasks, { id: Date.now(), title, completed: false, priority: "medium" }]);
-  const clearAllTasks = () => window.confirm("Wyczyścić wszystko?") && setTasks([]);
+  const addTask = (title, category) => {
+    setTasks([...tasks, { id: Date.now(), title, completed: false, priority: "medium", category }]);
+  };
 
-  const filteredTasks = tasks.filter(t => {
-    if (filter === 'active') return !t.completed;
-    if (filter === 'completed') return t.completed;
-    return true;
-  });
+  const priorityMap = { high: 3, medium: 2, low: 1 };
+
+  const filteredAndSortedTasks = tasks
+    .filter(t => {
+      if (filter === 'active') return !t.completed;
+      if (filter === 'completed') return t.completed;
+      return true;
+    })
+    .filter(t => categoryFilter === 'all' || t.category === categoryFilter)
+    .filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === 'priority') return priorityMap[b.priority] - priorityMap[a.priority];
+      if (sortBy === 'alphabetical') return a.title.localeCompare(b.title);
+      return 0;
+    });
 
   return (
     <div className="App">
       <Header />
-      <Card title="Panel Kontrolny">
+      <Card title="Menedżer Zadań Pro">
         <QuoteOfTheDay />
         <AddTask onAdd={addTask} />
         
-        <div style={{ height: '20px', fontSize: '0.8em', color: 'blue' }}>
-          {isSaving && "Zapisywanie zmian w chmurze..."}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
+          <input 
+            type="text" 
+            placeholder="Szukaj..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ padding: '8px', flexGrow: 1 }}
+          />
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ padding: '8px' }}>
+            <option value="all">Wszystkie kategorie</option>
+            <option value="Praca">Praca</option>
+            <option value="Dom">Dom</option>
+            <option value="Zakupy">Zakupy</option>
+            <option value="Inne">Inne</option>
+          </select>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: '8px' }}>
+            <option value="default">Sortowanie: domyślne</option>
+            <option value="priority">Sortowanie: priorytet</option>
+            <option value="alphabetical">Sortowanie: A-Z</option>
+          </select>
         </div>
 
         <TaskStats tasks={tasks} />
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <FilterButtons activeFilter={filter} setFilter={setFilter} />
-          <button onClick={clearAllTasks} style={{ color: 'red' }}>Wyczyść listę</button>
-        </div>
+        <FilterButtons activeFilter={filter} setFilter={setFilter} />
 
         {isLoading ? (
-          <p>Trwa pobieranie zadań z serwera...</p>
+          <p>Ładowanie...</p>
+        ) : filteredAndSortedTasks.length === 0 ? (
+          <p>Nie znaleziono zadań dla podanych kryteriów.</p>
         ) : (
           <TaskList 
-            tasks={filteredTasks} 
-            onDelete={deleteTask} 
-            onToggle={toggleTask}
-            onChangePriority={changePriority} 
+            tasks={filteredAndSortedTasks} 
+            onDelete={(id) => setTasks(tasks.filter(t => t.id !== id))} 
+            onToggle={(id) => setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
+            onChangePriority={(id, p) => setTasks(tasks.map(t => t.id === id ? { ...t, priority: p } : t))} 
           />
         )}
       </Card>
